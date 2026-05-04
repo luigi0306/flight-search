@@ -24,13 +24,13 @@ export async function sendTelegramNotification(
   const formattedDeparture = formatDate(departureDate);
   const formattedReturn = returnDate ? ` | Volta: ${formatDate(returnDate)}` : '';
 
-  const safeLink = bookingLink.replace(/&/g, '&amp;');
-
   const message = `🚨 ALERTA DE PASSAGEM!
 🛫 ${origin} ➡️ ${destination}
 📅 Ida: ${formattedDeparture}${formattedReturn}
 💰 Preço Atual: R$ ${priceFound.toFixed(2).replace('.', ',')} (Seu Alvo: R$ ${targetPrice.toFixed(2).replace('.', ',')})
-🔗 ${safeLink}`;
+
+🔗 Link da passagem:
+${bookingLink}`;
 
   try {
     const response = await fetch(
