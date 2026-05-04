@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/fetch-flights",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/fetch-flights",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/fetch-flights",
+      "schedule": "0 19 * * *"
+    }
+  ]
+}

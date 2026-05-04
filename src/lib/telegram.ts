@@ -20,16 +20,17 @@ export async function sendTelegramNotification(
     return false;
   }
 
-  const formattedDeparture = new Date(departureDate).toLocaleDateString('pt-BR');
-  const formattedReturn = returnDate
-    ? ` | Volta: ${new Date(returnDate).toLocaleDateString('pt-BR')}`
-    : '';
+  const formatDate = (dateStr: string) => dateStr.split('T')[0].split('-').reverse().join('/');
+  const formattedDeparture = formatDate(departureDate);
+  const formattedReturn = returnDate ? ` | Volta: ${formatDate(returnDate)}` : '';
+
+  const safeLink = bookingLink.replace(/&/g, '&amp;');
 
   const message = `🚨 ALERTA DE PASSAGEM!
 🛫 ${origin} ➡️ ${destination}
 📅 Ida: ${formattedDeparture}${formattedReturn}
 💰 Preço Atual: R$ ${priceFound.toFixed(2).replace('.', ',')} (Seu Alvo: R$ ${targetPrice.toFixed(2).replace('.', ',')})
-🔗 ${bookingLink}`;
+🔗 ${safeLink}`;
 
   try {
     const response = await fetch(

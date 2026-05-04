@@ -11,15 +11,105 @@ export interface FlightResult {
   currency: string;
 }
 
-const FLIGHT_API_BASE = 'https://api.tequila.kiwi.com/v2';
+export type FlightProvider = 'serpapi' | 'rapidapi' | 'tequila' | 'mock';
+
+export type FlightProviderFunc = (
+  params: FlightSearchParams
+) => Promise<FlightResult | null>;
+
+const SERPAPI_KEY = process.env.SERPAPI_KEY;
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 const FLIGHT_API_KEY = process.env.FLIGHT_API_KEY;
 
 export async function fetchCheapestFlight(
+  params: FlightSearchParams,
+  provider: FlightProvider = 'serpapi'
+): Promise<FlightResult | null> {
+  switch (provider) {
+    case 'serpapi':
+      return fetchFromSerpApi(params);
+    case 'rapidapi':
+      return fetchFromRapidApi(params);
+    case 'tequila':
+      return fetchFromTequila(params);
+    case 'mock':
+    default:
+      return fetchMock(params);
+  }
+}
+
+export async function fetchFromSerpApi(
   params: FlightSearchParams
 ): Promise<FlightResult | null> {
-  if (!FLIGHT_API_KEY) {
-    console.error('FLIGHT_API_KEY not configured');
+  if (!SERPAPI_KEY) {
+    console.warn('SERPAPI_KEY not configured, falling back to mock');
+    return fetchMock(params);
+  }
+
+  const { origin, destination, dateFrom, dateTo } = params;
+
+  try {
+    const searchParams = new URLSearchParams({
+      engine: 'google_flights',
+      departure_id: origin,
+      arrival_id: destination,
+      outbound_date: dateFrom,
+      return_date: dateTo || dateFrom,
+      currency: 'BRL',
+      hl: 'pt-BR',
+      api_key: SERPAPI_KEY,
+    });
+
+    const response = await fetch(`https://serpapi.com/search.json?${searchParams}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('SerpApi error:', response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+
+    const flights = [...(data.best_flights || []), ...(data.other_flights || [])];
+
+    if (flights.length === 0) {
+      console.warn('No flights found in SerpApi response');
+      return null;
+    }
+
+    const cheapestFlight = flights.reduce((best: any, current: any) => {
+      const bestPrice = best.price || Infinity;
+      const currentPrice = current.price || Infinity;
+      return currentPrice < bestPrice ? current : best;
+    }, flights[0]);
+
+    const bookingLink = data.search_metadata?.google_flights_url || cheapestFlight.share_link || `https://www.google.com/flights/?q=${origin}+to+${destination}`;
+
+    return {
+      price: cheapestFlight.price,
+      link: bookingLink,
+      currency: data.currency || 'BRL',
+    };
+  } catch (error) {
+    console.error('Failed to fetch from SerpApi:', error);
     return null;
+  }
+}
+
+export async function fetchFromRapidApi(
+  params: FlightSearchParams
+): Promise<FlightResult | null> {
+  throw new Error('RapidApi integration not implemented yet');
+}
+
+async function fetchFromTequila(
+  params: FlightSearchParams
+): Promise<FlightResult | null> {
+  const FLIGHT_API_BASE = 'https://api.tequila.kiwi.com/v2';
+
+  if (!FLIGHT_API_KEY || FLIGHT_API_KEY === '') {
+    console.warn('FLIGHT_API_KEY not configured, falling back to mock');
+    return fetchMock(params);
   }
 
   const { origin, destination, dateFrom, dateTo } = params;
@@ -37,14 +127,14 @@ export async function fetchCheapestFlight(
 
     const response = await fetch(`${FLIGHT_API_BASE}/search?${searchParams}`, {
       headers: {
-        'apikey': FLIGHT_API_KEY,
+        apikey: FLIGHT_API_KEY,
         'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Flight API error:', response.status, errorText);
+      console.error('Tequila API error:', response.status, errorText);
       return null;
     }
 
@@ -72,7 +162,15 @@ export async function fetchCheapestFlight(
       currency: data.currency || 'BRL',
     };
   } catch (error) {
-    console.error('Failed to fetch flight data:', error);
+    console.error('Failed to fetch from Tequila:', error);
     return null;
   }
+}
+
+function fetchMock(params: FlightSearchParams): FlightResult {
+  return {
+    price: 350,
+    link: 'https://kiwi.com/mock',
+    currency: 'BRL',
+  };
 }

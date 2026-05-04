@@ -73,6 +73,7 @@ export async function GET() {
         flight.price !== alert.last_notified_price;
 
       if (shouldNotify) {
+        console.log(`[NOTIFICATION] Would send Telegram with link: ${flight.link}`);
         const notified = await sendTelegramNotification({
           origin: alert.origin,
           destination: alert.destination,
@@ -89,6 +90,8 @@ export async function GET() {
             .update({ last_notified_price: flight.price })
             .eq('id', alert.id);
         }
+
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         results.push({
           alertId: alert.id,
